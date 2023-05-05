@@ -1,4 +1,4 @@
-const storeFiles = require('../todo');
+const todo = require('../todo');
 
 // Dummy data showing data structure
 const dummyData = {
@@ -11,4 +11,8 @@ const dummyData = {
   },
 };
 
-storeFiles(dummyData);
+async function run (){
+  await todo.storeFiles(dummyData)
+}
+
+run()

@@ -4,7 +4,7 @@
   "description": "Tasks run following a periodic structure of 'rounds':",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node tests/db.js",
     "test:todo": "node tests/todo.js",
     "start": "node index.js",
     "webpack": "webpack",
