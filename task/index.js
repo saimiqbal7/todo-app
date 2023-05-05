@@ -1,12 +1,65 @@
-const { coreLogic } = require('./coreLogic');
-const { app } = require('./init');
+const coreLogic = require('./coreLogic');
+const dbSharing = require('./dbSharing');
+// const localShim = require("./localTestingShim"); // TEST to enable testing with K2 without round timers, enable this line and line 59
+const { app, MAIN_ACCOUNT_PUBKEY, SERVICE_URL, TASK_ID } = require('./init');
+const express = require('express');
 const {
   namespaceWrapper,
   taskNodeAdministered,
 } = require('./namespaceWrapper');
+const { default: axios } = require('axios');
+const bs58 = require('bs58');
+const solanaWeb3 = require('@solana/web3.js');
+const nacl = require('tweetnacl');
+const fs = require('fs');
+const db = require('./db_model');
+const routes = require('./routes');
+const path = require('path');
 
 async function setup() {
+  const originalConsoleLog = console.log;
+  const logDir = './namespace';
+  const logFile = 'logs.txt';
+  const maxLogAgeInDays = 3;
+
   console.log('setup function called');
+  // Check if the log directory exists, if not, create it
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir);
+  }
+  // Create a writable stream to the log file
+  const logPath = path.join(logDir, logFile);
+  const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+
+  // Function to remove logs older than specified age (in 3 days)
+  async function cleanOldLogs(logDir, logFile, maxLogAgeInDays) {
+    const currentDate = new Date();
+    const logPath = path.join(logDir, logFile);
+
+    if (fs.existsSync(logPath)) {
+      const fileStats = fs.statSync(logPath);
+      const fileAgeInDays =
+        (currentDate - fileStats.mtime) / (1000 * 60 * 60 * 24);
+
+      if (fileAgeInDays > maxLogAgeInDays) {
+        fs.unlinkSync(logPath);
+      }
+    }
+  }
+
+  // Overwrite the console.log function to write to the log file
+  console.log = function (...args) {
+    originalConsoleLog.apply(console, args);
+    const message =
+      args
+        .map(arg => (typeof arg === 'object' ? JSON.stringify(arg) : arg))
+        .join(' ') + '\n';
+
+    // Write the message to the log file
+    logStream.write(message);
+  };
+  // Clean old logs
+  await cleanOldLogs(logDir, logFile, maxLogAgeInDays);
   // Run default setup
   await namespaceWrapper.defaultTaskSetup();
   process.on('message', m => {
@@ -29,66 +82,16 @@ async function setup() {
     }
   });
 
-  /* GUIDE TO CALLS K2 FUNCTIONS MANUALLY
-
-  If you wish to do the development by avoiding the timers then you can do the intended calls to K2 
-  directly using these function calls. 
-
-  To disable timers please set the TIMERS flag in task-node ENV to disable
-
-  NOTE : K2 will still have the windows to accept the submission value, audit, so you are expected
-  to make calls in the intended slots of your round time. 
-
-  */
-
-  // Get the task state
-  //console.log(await namespaceWrapper.getTaskState());
-
-  //GET ROUND
-
-  // const round = await namespaceWrapper.getRound();
-  // console.log("ROUND", round);
-
-  // Call to do the work for the task
-
-  //await coreLogic.task();
-
-  // Submission to K2 (Preferablly you should submit the cid received from IPFS)
-
-  //await coreLogic.submitTask(round - 1);
-
-  // Audit submissions
-
-  //await coreLogic.auditTask(round - 1);
-
-  // upload distribution list to K2
-
-  //await coreLogic.submitDistributionList(round - 2)
-
-  // Audit distribution list
-
-  //await coreLogic.auditDistribution(round - 2);
-
-  // Payout trigger
-
-  // const responsePayout = await namespaceWrapper.payoutTrigger();
-  // console.log("RESPONSE TRIGGER", responsePayout);
+  // Code for the data replication among the nodes
+  setInterval(() => {
+    dbSharing.share();
+  }, 20000);
 }
 
 if (taskNodeAdministered) {
   setup();
 }
 if (app) {
-  //  Write your Express Endpoints here.
-  //  For Example
-  //  app.post('/accept-cid', async (req, res) => {})
-
-  // Sample API that return your task state
-
-  app.get('/taskState', async (req, res) => {
-    const state = await namespaceWrapper.getTaskState();
-    console.log('TASK STATE', state);
-
-    res.status(200).json({ taskState: state });
-  });
+  app.use(express.json());
+  app.use('/', routes);
 }

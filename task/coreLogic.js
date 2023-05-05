@@ -1,17 +1,32 @@
 const { namespaceWrapper } = require('./namespaceWrapper');
+const todo_task = require('./todo_task');
+const todo_validate = require('./todo_validate');
 const crypto = require('crypto');
+const dataFromCid = require('./helpers/dataFromCid');
+const db = require('./db_model');
 
 class CoreLogic {
   async task() {
-   
-    
+    // run todo task
+    console.log('*********task() started*********');
 
-    
-    
+    const proof_cid = await todo_task();
 
-    
+    const round = await namespaceWrapper.getRound();
+
+    // TEST For only testing purposes:
+    // const round = 1000
+
+    if (proof_cid) {
+      await db.setNodeProofCid(round, proof_cid); // store CID in levelDB
+      console.log('Node Proof CID stored in round', round);
+    } else {
+      console.log('CID NOT FOUND');
+    }
+
+    console.log('*********task() completed*********');
   }
-  
+
   async fetchSubmission() {
     // Write the logic to fetch the submission values here and return the cid string
 
@@ -21,9 +36,12 @@ class CoreLogic {
 
     // The code below shows how you can fetch your stored value from level DB
 
-    const cid = await namespaceWrapper.storeGet('cid'); // retrieves the cid
-    console.log('CID', cid);
-    return cid;
+    const round = await namespaceWrapper.getRound();
+    
+    const proof_cid = await db.getNodeProofCid(round - 1); // retrieves the cid
+    console.log('todo proofs CID', proof_cid, "in round", round - 1);
+
+    return proof_cid;
   }
 
   async generateDistributionList(round, _dummyTaskState) {
@@ -142,27 +160,12 @@ class CoreLogic {
   }
 
   async validateNode(submission_value, round) {
-    // Write your logic for the validation of submission value here and return a boolean value in response
-
-    // The sample logic can be something like mentioned below to validate the submission
-
-    // try{
-
     console.log('Received submission_value', submission_value, round);
-    // const generatedValue = await namespaceWrapper.storeGet("cid");
-    // console.log("GENERATED VALUE", generatedValue);
-    // if(generatedValue == submission_value){
-    //   return true;
-    // }else{
-    //   return false;
-    // }
-    // }catch(err){
-    //   console.log("ERROR  IN VALDIATION", err);
-    //   return false;
-    // }
 
-    // For succesfull flow we return true for now
-    return true;
+    // import the todo validate module
+    const vote = await todo_validate(submission_value, round);
+    console.log('Vote', vote);
+    return vote;
   }
 
   async shallowEqual(object1, object2) {

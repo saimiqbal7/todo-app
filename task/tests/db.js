@@ -7,24 +7,18 @@ async function testdb() {
   const round = 1000;
   const pubkey = PublicKey;
 
-  let todo = {
-    todos: [
-      { id: 'to-1', todo: 'Buy milk and bread', isDone: true },
-      { id: 'todo-4', todo: 'Buy Choco and fruits', isDone: false },
-    ],
-  };
-  let todo2 = {
-    todos: [
-      { id: 'todo-8', todo: 'Drink water', isDone: false },
-      { id: 'todo-2', todo: 'Buy Choco', isDone: false },
-    ],
-  };
+  let todo = 'Buy milk and bread';
+
+  let todo2 = 'Drink water';
+
+
   // await dbmodel.setTodo(PublicKey, todo);
-  await dbmodel.setTodo(PublicKey, todo2);
+  // await dbmodel.setTodo(PublicKey, todo2);
+  await dbmodel.updateTodo(PublicKey, 'bafybeico5yp6yn4jn4hddnzg2jvrvsupfrua6iqgo2jaxpp7bckpqspdnq');
 
   // get todo
-  let todo_ = await dbmodel.getTodo(PublicKey);
-  console.log(todo_);
+  // let todo_ = await dbmodel.getTodo(PublicKey);
+  // console.log(todo_);
 
   // get all todos
   let all = await dbmodel.getAllTodos();
